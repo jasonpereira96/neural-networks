@@ -160,8 +160,6 @@ def run():
   row.append(len(misclassifications_per_epoch))
 
   print_weights_comparison()
-  plot_initial_graph(w0_, w1_, w2_, X)
-
 
   w0_, w1_, w2_ = initial_weights
   eta = 10
