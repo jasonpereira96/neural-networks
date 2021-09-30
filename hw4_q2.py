@@ -2,7 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 N = 50
-EPOCHS = 1000
+EPSILON = 0.001
 eta = 0.0001
 min_value, min_point = np.Inf, [8, 8]
 
@@ -11,8 +11,13 @@ def sigma(values):
 
 def get_initial_points():
   return np.random.uniform(-1, 1), np.random.uniform(-1, 1)
+
+def has_converged(energies):
+  if len(energies) < 2:
+    return False
+  else:
+    return (energies[-2] - energies[-1]) <= EPSILON
   
-# https://www.statisticshowto.com/probability-and-statistics/regression-analysis/find-a-linear-regression-equation/
 class Question2:
   def f(self, w0, w1):
     # return ((y - w0 - w1*x) ** 2)
@@ -44,7 +49,7 @@ class Question2:
     energies = []
     epoch = 0
 
-    while epoch < EPOCHS:
+    while not has_converged(energies):
       F = self.f(w0, w1)
       energies.append(F)
 
@@ -80,7 +85,7 @@ class Question2:
 
   def plot_graph(self, lr_coefficients, gd_coefficients):
     # plot both graphs side by side and put in report
-    plt.clf()
+    # plt.clf()
     fig, (ax1, ax2) = plt.subplots(1, 2)
     fig.suptitle('Optimizing cost function')
 
@@ -91,25 +96,54 @@ class Question2:
     ax1.scatter(self.X, self.Y, label="Data points")
     x = np.linspace(0, 50)
     y = w0 + w1 * x
-    ax1.plot(x, y, c="red", label="Regression line")
+    ax1.plot(x, y, c="red", label="Regression line using least squares")
+    ax1.legend()
 
-    w0, w1 = gd_coefficients
+    w0_, w1_ = gd_coefficients
     ax2.scatter(self.X, self.Y, label="Data points")
+
+    x = np.linspace(0, 50)
+    y = w0_ + w1_ * x
+    ax2.plot(x, y, c="yellow", label="Regression line using gradient descent")
+    
+    plt.legend()
+    plt.show()  
+
+  def plot_graph_merged(self, lr_coefficients, gd_coefficients):
+    plt.clf()
+    plt.suptitle('Least squares vs gradient descent (Zoomed in)')
+    ax = plt.gca()
+
+    plt.xlabel("X")
+    plt.ylabel("Y")
+
+    plt.scatter(self.X, self.Y, label="Data points")
+
+    w0, w1 = lr_coefficients
     x = np.linspace(0, 50)
     y = w0 + w1 * x
-    ax2.plot(x, y, c="yellow", label="Regression line")
-    fig.show()
+    plt.plot(x, y, c="red", label="Regression line using least squares")
+
+    w0_, w1_ = gd_coefficients
+    x = np.linspace(0, 50)
+    y = w0_ + w1_ * x
+    plt.plot(x, y, c="yellow", label="Regression line using gradient descent")
     
+    ax.set_ylim(0, 5)
+    ax.set_xlim(0, 5)
+    plt.legend()
+    plt.show()  
 
   def run(self):
     w0, w1 = self.get_coefficients()
-    print("w0: {} and w1: {}".format(w0,w1))
+    print("Least squares weights w0: {} and w1: {}".format(w0,w1))
     # self.plot_graph([w0, w1])
     w0_, w1_ = self.gradient_descent()
-    print("w0: {} and w1: {}".format(w0,w1))
+    print("Gradient descent weights w0: {} and w1: {}".format(w0_ ,w1_))
     self.plot_graph([w0, w1], [w0_, w1_])
-    print("Min value: {}".format(min_value))
-    print("Energies: {}".format(self.energies))
+    self.plot_graph_merged([w0, w1], [w0_, w1_])
+    print("Min value of cost function: {}".format(min_value))
+    # print("Energies: {}".format(self.energies))
 
 ls = Question2()
 ls.run()
