@@ -86,14 +86,21 @@ class HW5:
     # print("x: {}".format(x))
 
     # initial_mse = self.mse()
+
+    v_1 = x*(self.W1) + self.B #Local Induced Fileds of the hidden layer
+    y_1 = np.tanh(v_1)
+    v_2 = y_1.T.dot(self.W2) + self.b
+    y = v_2 # output of the network
+    print("in run_epoch() x:{} d:{} y:{}".format(x, d, y))
+
     
-    y = self.get_network_output(x)
+    # y = self.get_network_output(x)
 
     error_signal = (d - y)
 
     del_E_by_del_b = -(1)*(error_signal)
     
-    del_E_by_del_W2 = -(phi(self.W1*x+self.B))*(error_signal)
+    del_E_by_del_W2 = -(phi(v_1))*(error_signal)
     print("in RE")
     print("b update: {}".format(del_E_by_del_b))
     print("W2 update: {}".format(del_E_by_del_W2))
@@ -126,8 +133,10 @@ class HW5:
     # self.b += eta*self.delta_out
 
     print("in BP")
+
+    print("in BP() x:{} d:{} y:{}".format(x, d, y))
     print("b update: {}".format(self.delta_out))
-    print("W2 update: {}".format(self.delta_out*np.tanh(x*(self.W1) + self.B)))
+    print("W2 update: {}".format(self.delta_out*self.y_1))
 
     return
     
@@ -172,14 +181,18 @@ class HW5:
     plot_mse_graph(self.mse_per_epoch)
 
   def run2(self):
-    print("get_network_output(): {}".format(self.get_network_output(3)))
-    print("FF(): {}".format(self.FeedForward(3)))
+    print("get_network_output(): {}".format(self.get_network_output(self.X[3])))
+    print("FF(): {}".format(self.FeedForward(self.X[3])))
 
     print("mse(): {}".format(self.mse_avg()))
     print("loss(): {}".format(self.loss(self.X, self.D)))
 
     self.run_epoch(3)
+    print("get_network_output(): {}".format(self.get_network_output(self.X[3])))
+    self.FeedForward(self.X[3])
+    print("get_network_output(): {}".format(self.get_network_output(self.X[3])))
     self.BackPropagate(self.X[3], self.get_network_output(self.X[3]), self.D[3])
+    print("get_network_output(): {}".format(self.get_network_output(self.X[3])))
 
 hw5 = HW5()
 hw5.run2()
