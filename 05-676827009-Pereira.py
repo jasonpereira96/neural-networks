@@ -4,6 +4,11 @@ import matplotlib.pyplot as plt
 N = 24
 POINTS = 300
 eta = 0.01
+decay = 10**(-6)
+
+def normalize(arr):
+  norm = np.linalg.norm(arr)
+  return arr / norm
 
 def average(V):
   return sum(V) / len(V)
@@ -51,9 +56,16 @@ def plot_graph(X, D, network=None):
 class HW5:
 
   def get_network_output(self, x):
+    # V = self.W1.transpose() * x + self.B
+    # print("V: {}".format(V))
     I = np.tanh(self.W1.transpose() * x + self.B)
     Y = np.dot(self.W2.transpose(), I) + self.b
     return Y
+
+  def get_local_fields(self, x):
+    V = self.W1.transpose() * x + self.B
+    return V
+
 
   def FeedForward(self,x): # This method feeds forward the input x and returs the predicted output
     # I use the same notation as Haykin book
@@ -79,19 +91,19 @@ class HW5:
     self.cost = np.mean(np.square(temp))
     return self.cost
 
-  def run_epoch(self, index):
+  def run_epoch(self, index, epoch):
     global eta
     x, d = self.X[index], self.D[index]
 
     # print("x: {}".format(x))
 
-    # initial_mse = self.mse()
+    initial_mse = self.mse_avg()
 
     v_1 = x*(self.W1) + self.B #Local Induced Fileds of the hidden layer
     y_1 = np.tanh(v_1)
     v_2 = y_1.T.dot(self.W2) + self.b
     y = v_2 # output of the network
-    print("in run_epoch() x:{} d:{} y:{}".format(x, d, y))
+    # print("in run_epoch() x:{} d:{} y:{}".format(x, d, y))
 
     
     # y = self.get_network_output(x)
@@ -101,28 +113,33 @@ class HW5:
     del_E_by_del_b = -(1)*(error_signal)
     
     del_E_by_del_W2 = -(phi(v_1))*(error_signal)
-    print("in RE")
-    print("b update: {}".format(del_E_by_del_b))
-    print("W2 update: {}".format(del_E_by_del_W2))
-    print("")
+    # print("in RE")
+    # print("b update: {}".format(del_E_by_del_b))
+    # print("W2 update: {}".format(del_E_by_del_W2))
+    # print("")
 
 
-    return
+    # return
 
     self.W2 = self.W2 - eta * del_E_by_del_W2
     self.b = self.b - eta * del_E_by_del_b
 
     
-    del_E_by_del_B = -(1)*((error_signal)*self.W2*phi_dash(self.W1*x+self.B))
-    del_E_by_del_W1 = -(x) * ((error_signal)*self.W2*phi_dash(self.W1*x+self.B))
+    del_E_by_del_B = -(1)*((error_signal)*self.W2*phi_dash(v_1))
+    del_E_by_del_W1 = -(x) * ((error_signal)*self.W2*phi_dash(v_1))
     
     self.W1 = self.W1 - eta * del_E_by_del_W1 
     self.B = self.B - eta * del_E_by_del_B
 
-    y = self.get_network_output(x)
-    self.mse_per_epoch.append(y)
+    e = self.mse_avg()
+    self.mse_per_epoch.append(e)
 
     current_mse = self.mse_avg()
+
+    if current_mse > initial_mse and epoch % 50 == 0:
+      # print("Eta changed to: {}".format(eta))
+      # eta = 0.9 * eta
+      pass
 
   def BackPropagate(self,x,y,d): 
     # Given the input, desired output, and predicted output 
@@ -144,13 +161,15 @@ class HW5:
     self.w_1 += eta*x*self.delta_1
     self.b_1 += eta*self.delta_1
 
-    # if current_mse > initial_mse:
-      # eta = 0.9 * eta
-      # pass
+    if current_mse > initial_mse:
+      eta = 0.9 * eta
+      pass
 
   def __init__(self):
-    self.X = np.array([get_random() for i in range(POINTS)])
-    self.V = np.array([np.random.uniform(-0.1, 0.1) for i in range(POINTS)])
+    self.X = np.array(np.random.uniform(0,1, POINTS))
+    self.V = np.array(np.random.uniform(-0.1, 0.1, POINTS))
+
+    # self.X = normalize(self.X)
 
     D = []
     for index in range(POINTS):
@@ -158,23 +177,38 @@ class HW5:
       D.append(np.sin(20 * x) + 3*x + v)
     self.D = np.array(D)
 
-    self.W1 = np.array([get_random() for i in range(N)])
-    self.W2 = np.array([get_random() for i in range(N)])
-    self.B = np.array([get_random() for i in range(N)])
-    self.b = get_random()
+    self.W1 = np.array(np.random.normal(0, 10, N))
+    self.W2 = np.array(np.random.normal(0, 10, N))
+    self.B = np.array([1 for i in range(N)])
+    self.b = 1
 
     self.mse_per_epoch = []
+
+    print("Variance of W1: {}".format(np.var(self.W1)))
+    print("Variance of W2: {}".format(np.var(self.W2)))
+    print("Variance of B: {}".format(np.var(self.B)))
+
 
   def run(self):
     # plot_graph(self.X, self.D, self)
     # print(self.get_network_output(2))
+    global eta
     print("MSE: {}".format(self.mse_avg()))
 
     epoch = 0
     while epoch < 3000:
       index = epoch % POINTS
-      self.run_epoch(index)
+      self.run_epoch(index, epoch=epoch)
       epoch += 1
+
+      if len(self.mse_per_epoch) > 2 and (self.mse_per_epoch[-1] > self.mse_per_epoch[-2]):
+        # eta = eta * (1/(1 + decay * epoch))
+        pass
+
+      if epoch % 200 == 0:
+        print("epoch: {}".format(epoch))
+        print("local field of neuron 3: {}".format(self.get_local_fields(5)[3]))
+
 
     print("MSE: {}".format(self.mse_avg()))
     plot_graph(self.X, self.D, self)
@@ -195,9 +229,13 @@ class HW5:
     print("get_network_output(): {}".format(self.get_network_output(self.X[3])))
 
 hw5 = HW5()
-hw5.run2()
+hw5.run()
 
 
 
 
 
+'''
+Normalize the variance to 1/number of inputs
+initial weights should be normalized
+'''
