@@ -18,7 +18,7 @@ from torch.utils.data import DataLoader
 from torchvision.io import read_image
 from zipfile import ZipFile
 
-DEVICE = 'cuda' if torch.cuda.is_available() else 'cpu'
+DEVICE = torch.device("cuda") if torch.cuda.is_available() else 'cpu'
 print('Using {} device'.format(DEVICE))
 
 DATASET_LOCATION = 'local'
@@ -37,6 +37,11 @@ TRAINING_SET_PATH = 'geometry_dataset/train'
 TEST_SET_PATH = 'geometry_dataset/test'
 TRAINING_LABELS_PATH = 'geometry_dataset/training.file'
 TEST_LABELS_PATH = 'geometry_dataset/testing.file'
+
+
+def is_dataset_local():
+  # return DATASET_LOCATION == 'local'
+  return DATASET_LOCATION == 'drive'
 
 # Google Drive data
 DRIVE_ROOT = "drive/MyDrive/"
@@ -58,9 +63,6 @@ random.seed(55)
 if not is_dataset_local():
   drive.mount('/content/drive')
 
-def is_dataset_local():
-  # return DATASET_LOCATION == 'local'
-  return DATASET_LOCATION == 'drive'
 
 
 # def save_checkpoint(network):
@@ -267,7 +269,7 @@ class ImageDataset(Dataset):
       # print(image[0][0])
       image = np.delete(image,[1,2], 2)
       image = np.swapaxes(image, 0, 2)
-      image = torch.from_numpy(image)
+      image = torch.from_numpy(image).to(DEVICE)
       # print("C")
       # print(image.shape)
 
@@ -368,7 +370,8 @@ if __name__ == "__main__":
   print ('+++++++++++++++++++++++++++++++++++++++++++++++++++')
 
 
-  criterion = nn.CrossEntropyLoss()
+  # criterion = nn.CrossEntropyLoss()
+  criterion = nn.CrossEntropyLoss().cuda() if torch.cuda.is_available() else nn.CrossEntropyLoss()
   optimizer = optim.SGD(network.parameters(), lr=0.001, momentum=0.9)
 
   print('Starting Training')
@@ -386,7 +389,7 @@ if __name__ == "__main__":
 
       # forward + backward + optimize
       outputs = network(inputs)
-      loss = criterion(outputs, labels)
+      loss = criterion(outputs.cuda(), labels.cuda())
       loss.backward()
       optimizer.step()
 
