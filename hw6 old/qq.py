@@ -28,7 +28,7 @@ DEVICE = torch.device("cuda") if torch.cuda.is_available() else 'cpu'
 print('Using {} device'.format(DEVICE))
 
 DATASET_LOCATION = 'local'
-MODEL_FILENAME = "model_weights_2021-10-31 07 00 54.pth"
+MODEL_FILENAME = "model_weights_v2_2021-11-01 08 42 55.pth"
 SAVE_MODEL = False
 LOAD_WEIGHTS = True
 BATCH_SIZE = 128
@@ -78,6 +78,14 @@ def get_filenames():
 
   print("{} PNG files to classify".format(len(file_names)))
   return file_names
+
+
+def print_image(x):
+  for i in range(200):
+    line = ''
+    for j in range(200):
+      line = line + str(x[0][0][i][j].item())
+    print(line)
 
 # def save_checkpoint(network):
 #   checkpoint = {'input_size': WIDTH * HEIGHT,
@@ -141,9 +149,11 @@ def get_file_stem(filename):
 
 def build_bw_png(rgb_im, min_color, max_color):
   new_image_array = np.zeros((200, 200))
+  # print("in bbp")
+  # print("{} {}".format(min_color, max_color))
 
-  for index in range(len(new_image_array)):
-    new_image_array[index] = [0] * HEIGHT
+  # for index in range(len(new_image_array)):
+  #   new_image_array[index] = [0] * HEIGHT
 
   for row_index in range(WIDTH):
     for col_index in range(HEIGHT):
@@ -153,8 +163,12 @@ def build_bw_png(rgb_im, min_color, max_color):
         new_image_array[row_index][col_index] = BLACK
       else:
         new_image_array[row_index][col_index] = WHITE
+  
+  # print("nia")
+  # print(new_image_array)
 
   return new_image_array
+
   
 
 def add_color(color, set):
@@ -183,7 +197,9 @@ def convert_to_bw(input_filename, output_filename):
   min_color = color1 if color_counts[color1] < color_counts[color2] else color2
   max_color = color1 if color_counts[color1] > color_counts[color2] else color2
 
+  # print('color_counts')
   # print(color_counts)
+
   bw_image_array = build_bw_png(rgb_im, min_color, max_color)
 
   # print(bw_image_array)
@@ -273,10 +289,14 @@ class ImageDataset(Dataset):
     self.zipped_filenames = []
 
     zip_ = ZipFile('temp.zip', 'w')
+    # zip_ = ZipFile('temp.zip', 'r')
+
     for filename in get_filenames():
       new_filename = get_file_stem(filename) + '_bw.png'
       convert_to_bw(os.path.join(IMAGES_DIR, filename), new_filename)
-      zip_.write(filename, new_filename)
+      # zip_.write(filename, new_filename)
+      zip_.write(new_filename)
+
       self.zipped_filenames.append(new_filename)
       count += 1
 
@@ -302,6 +322,8 @@ class ImageDataset(Dataset):
     self.target_transform = target_transform
 
   def __len__(self):
+    # return 1
+
     return self.N
 
   def __getitem__(self, index):
@@ -321,6 +343,9 @@ class ImageDataset(Dataset):
     # img_path = 'hw6/geometry_dataset/train/' + self.img_labels[index]
 
     image_file = self.zip_file.open(img_path)
+    # image_file = self.zip_file.open('Triangle_ffa8bf6c-2a83-11ea-8123-8363a7ec19e6_bw.png')
+
+    
     # image = read_image(img_path, ImageReadMode.GRAY)
     image = mpimg.imread(image_file)
     # print("B")
@@ -348,12 +373,13 @@ class ImageDataset(Dataset):
 class CNN(nn.Module):
   def __init__(self):
     super(CNN, self).__init__()
-    self.conv1 = nn.Conv2d(1, 32, 3, 1)
-    self.conv2 = nn.Conv2d(32, 64, 3, 1)
+    self.conv1 = nn.Conv2d(1, 16, 3, 1)
+    self.conv2 = nn.Conv2d(16, 64, 3, 1)
     self.dropout1 = nn.Dropout2d(0.25)
-    self.dropout2 = nn.Dropout2d(0.5)
+    # self.dropout2 = nn.Dropout2d(0.5)
+    # self.fc1 = nn.Linear(64*98*98, 128) # 64 filters * (each filter produces an output of 98*)
     self.fc1 = nn.Linear(64*98*98, 128) # 64 filters * (each filter produces an output of 98*)
-    self.fc2 = nn.Linear(128, 10)
+    self.fc2 = nn.Linear(128, 9)
 
   # x represents our data
   def forward(self, x):
@@ -361,6 +387,8 @@ class CNN(nn.Module):
     # print("A")
     # print(x.shape)
     # print(x)
+
+    # print_image(x)
 
     x = self.conv1(x)
     # print(1)
@@ -390,12 +418,13 @@ class CNN(nn.Module):
     # Pass data through fc1
     x = self.fc1(x)
     x = F.relu(x)
-    x = self.dropout2(x)
+    # x = self.dropout2(x)
     x = self.fc2(x)
 
     # Apply softmax to x
     output = F.log_softmax(x, dim=1)
     return output
+
 
 if __name__ == "__main__":
   # generate_datasets()
