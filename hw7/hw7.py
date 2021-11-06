@@ -16,8 +16,8 @@ from torchvision.io import read_image
 from zipfile import ZipFile
 
 SAVE_WEIGHTS = True
-MODEL_FILENAME = "model.pth"
-LOAD_WEIGHTS = False
+MODEL_FILENAME = "model_2021-11-06 16:30:41.236940.pth" # load the model from this file
+LOAD_WEIGHTS = True
 ETA = 0.01
 EON = '<EON>'
 N = 27
@@ -37,6 +37,13 @@ def save_model(model):
   print("Saving model...")
   torch.save(model.state_dict(), get_model_filename())
   print("Model saved.")
+
+def get_letter(tensor): # tensor should be (1,1,27)
+  index = torch.argmax(tensor[0][0]).item()
+  if index == 0:
+    return EON
+  return chr(index + 97 - 1)
+  
 
 def str_from_3d_tensor(tensor):
   words = []
@@ -137,7 +144,7 @@ class RNN(nn.Module):
     # output = F.log_softmax(output, dim=1) # CE loss may require unnormalized inputs
     return output, (hn, cn)
 
-def train_epoch():
+def train_epoch(model):
   prev_state = torch.zeros([BATCH_SIZE, SEQ_LEN, N])
   h = torch.zeros([1, BATCH_SIZE, N])
   c = torch.zeros([1, BATCH_SIZE, N])
@@ -192,11 +199,11 @@ def train_epoch():
 
   return output, loss.item() / 11
 
-def train():
+def train(model):
   print("Starting training")
   total_loss = 0
   for epoch in range(100): # 2 epochs
-    output, loss = train_epoch()
+    output, loss = train_epoch(model)
     total_loss += loss
 
     if epoch % 2 == 0:
@@ -205,13 +212,38 @@ def train():
     if epoch % 20 == 0 and epoch != 0:
       save_model(model)
 
-def test():
-  h = torch.zeros([1, BATCH_SIZE, N])
-  c = torch.zeros([1, BATCH_SIZE, N])
+def test(model):
+  h = torch.zeros([1, 1, N])
+  c = torch.zeros([1, 1, N])
+  generated_name = ''
+  inputs = torch.zeros([1, 1, N])
+
+  inputs[0][0][16] = 1
+  starting_letter = get_letter(inputs)
+
+  print("Starting letter: {}".format(starting_letter))
+
+  for i in range(11):
+    output, (h, c) = model(inputs, (h, c))
+    # print("Output")
+    # print(output.shape)
+    # print(output)
+
+    # print(output[0][0])
+    # print(torch.argmax(output[0][0]).item())
+
+    letter = get_letter(output)
+  
+    if letter == EON:
+      break
+    else:
+      generated_name = generated_name + letter
+  
+  print(generated_name)
 
 
 if __name__ == "__main__":
-
+  
   training_set = NamesDataset(train=True)
 #   test_set = ImageDataset("test", get_image_tensor, get_label_tensor)
 
@@ -234,8 +266,8 @@ if __name__ == "__main__":
   # optimizer = optim.Adam(model.parameters(), lr=0.1)
   # scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=100, gamma=0.8)
 
-  train()
-  # test()
+  # train(model)
+  test(model)
 
   
 
