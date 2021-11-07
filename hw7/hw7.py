@@ -13,17 +13,27 @@ import torch.nn as nn
 from torch.utils.data import Dataset
 from torch.utils.data import DataLoader
 from torchvision.io import read_image
-from zipfile import ZipFile
 
-SAVE_WEIGHTS = True
-MODEL_FILENAME = "model_2021-11-06 16:30:41.236940.pth" # load the model from this file
-LOAD_WEIGHTS = True
-ETA = 0.01
+EPOCHS = 1
+SAVE_WEIGHTS = False
+MODEL_FILENAME = "gpu_ce/model_2021-11-07 00_47_15.703885.pth" # load the model from this file
+LOAD_WEIGHTS = False
+HAS_CUDA = torch.cuda.is_available()
+ETA = 0.001
 EON = '<EON>'
 N = 27
 SEQ_LEN = 11
-BATCH_SIZE = 3
+BATCH_SIZE = 1
 device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
+print("Using device: {}".format(device))
+
+
+def compress_labels(labels): # [BATCH_SIZE, 11, 27]
+  compressed = torch.zeros((BATCH_SIZE, 11), dtype=torch.long)
+  for batch_index in range(BATCH_SIZE):
+    for ch_index in range(SEQ_LEN):
+      compressed[batch_index][ch_index] = torch.argmax(labels[batch_index][ch_index])
+  return compressed
 
 def get_model_filename():
   return "model_" + str(datetime.datetime.now()) + '.pth'
@@ -120,7 +130,7 @@ class NamesDataset(Dataset):
   
   def __getitem__(self, index):
     name = self.names[index]
-    return name_to_2d_tensor(name), name_to_2d_tensor(name, shift=True)
+    return name_to_2d_tensor(name).to(device), name_to_2d_tensor(name, shift=True).to(device)
 
 
 class RNN(nn.Module):
@@ -163,10 +173,10 @@ def train_epoch(model):
     # print("Labels")
     # print(words)
     # print("i: {}".format(i))
-    # print("inputs shape")
-    # print(inputs.shape)
-    # print("labels shape")
-    # print(labels.shape)
+    print("inputs shape")
+    print(inputs.shape)
+    print("labels shape")
+    print(labels.shape)
     # model.zero_grad() # weird
     # optimizer.zero_grad()
 
@@ -175,14 +185,25 @@ def train_epoch(model):
     # print("c.shape")
     # print(c.shape)
 
+    # h = h.0to(device)
+    # c = c.to(device)
     output, (h, c) = model(inputs, (h, c))
     # print("output.shape")
     # print(output.shape)
     # print("hidden.shape")
     # print(hidden.shape)
+    # print("labels.shape")
+    # print(labels.shape)
     
+    # convert the labels into the format required by cross entropy loss
+    compressed = compress_labels(labels) 
+    # print(compressed.shape)
 
-    l = criterion(output, labels)
+    if HAS_CUDA:
+      l = criterion(output.cuda(), labels.cuda())
+    else:
+      l = criterion(torch.transpose(output, 1, 2), compressed)
+
     loss += l
     # optimizer.step() # throwing an error
     # scheduler.step()
@@ -197,49 +218,52 @@ def train_epoch(model):
   for p in model.parameters():
     p.data.add_(p.grad.data, alpha=-ETA)
 
-  return output, loss.item() / 11
+  return output, loss.item() / (2000 / BATCH_SIZE)
 
 def train(model):
   print("Starting training")
   total_loss = 0
-  for epoch in range(100): # 2 epochs
+  for epoch in range(EPOCHS): # 2 epochs
     output, loss = train_epoch(model)
     total_loss += loss
 
-    if epoch % 2 == 0:
+    if epoch % 20 == 0:
       print('Epoch: {} Loss: {}'.format(epoch, loss))
 
-    if epoch % 20 == 0 and epoch != 0:
+    if epoch % 100 == 0 and epoch != 0:
       save_model(model)
 
 def test(model):
   h = torch.zeros([1, 1, N])
   c = torch.zeros([1, 1, N])
-  generated_name = ''
-  inputs = torch.zeros([1, 1, N])
 
-  inputs[0][0][16] = 1
-  starting_letter = get_letter(inputs)
 
-  print("Starting letter: {}".format(starting_letter))
+  for letter_index in range(N):
+    generated_name = ''
+    inputs = torch.zeros([1, 1, N])
+    inputs[0][0][letter_index] = 1
+    starting_letter = get_letter(inputs)
+    print("Starting letter: {}".format(starting_letter))
 
-  for i in range(11):
-    output, (h, c) = model(inputs, (h, c))
-    # print("Output")
-    # print(output.shape)
-    # print(output)
+    for i in range(SEQ_LEN):
+      output, (h, c) = model(inputs, (h, c))
+      # print("Output")
+      # print(output.shape)
+      # print(output)
 
-    # print(output[0][0])
-    # print(torch.argmax(output[0][0]).item())
+      # print(output[0][0])
+      # print(torch.argmax(output[0][0]).item())
 
-    letter = get_letter(output)
-  
-    if letter == EON:
-      break
-    else:
+      letter = get_letter(output)
+    
       generated_name = generated_name + letter
-  
-  print(generated_name)
+      
+      if letter == EON:
+        break
+
+    print("Generated name:")
+    print(generated_name)
+    # print("Length of generated name: {}".format(len(generated_name)))
 
 
 if __name__ == "__main__":
@@ -247,7 +271,7 @@ if __name__ == "__main__":
   training_set = NamesDataset(train=True)
 #   test_set = ImageDataset("test", get_image_tensor, get_label_tensor)
 
-  training_dataloader = DataLoader(training_set, batch_size=BATCH_SIZE, shuffle=False,drop_last=True)
+  training_dataloader = DataLoader(training_set, batch_size=BATCH_SIZE, shuffle=True,drop_last=True)
 #   test_dataloader = DataLoader(test_set, batch_size=1, shuffle=False)
 
   # for i in range(33):
@@ -262,12 +286,15 @@ if __name__ == "__main__":
 
   model.to(device)
 
-  criterion = nn.CrossEntropyLoss() # handle for cuda as well
-  # optimizer = optim.Adam(model.parameters(), lr=0.1)
-  # scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=100, gamma=0.8)
+  # criterion = nn.MSELoss().cuda() if torch.cuda.is_available() else nn.MSELoss() # handle for cuda as well
+  criterion = nn.CrossEntropyLoss().cuda() if torch.cuda.is_available() else nn.CrossEntropyLoss() # handle for cuda as well
 
-  # train(model)
-  test(model)
+  optimizer = optim.Adam(model.parameters(), lr=ETA)
+  scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=100, gamma=0.9)
+  # model.
+
+  train(model)
+  # test(model)
 
   
 
