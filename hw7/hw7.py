@@ -14,10 +14,11 @@ from torch.utils.data import Dataset
 from torch.utils.data import DataLoader
 from torchvision.io import read_image
 
-EPOCHS = 5000
-SAVE_WEIGHTS = True
-MODEL_FILENAME = "model_v2_2021-11-08 01_37_07.337719.pth" # load the model from this file
-LOAD_WEIGHTS = False
+# good model: model_v3_2021-11-09 03_39_08.650717
+EPOCHS = 100
+SAVE_WEIGHTS = False
+MODEL_FILENAME = "/home/jason/Repos/NN/hw7/" + "model_v3_2021-11-09 03_39_08.650717.pth" # load the model from this file
+LOAD_WEIGHTS = True
 HAS_CUDA = torch.cuda.is_available()
 ETA = 0.001
 EON = '<EON>'
@@ -28,11 +29,43 @@ device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cp
 print("Using device: {}".format(device))
 
 
+def get_max_index(tensor, randomize=False): # (,27)
+  max_index = torch.argmax(tensor)
+  max_values, max_indices = torch.topk(tensor, 3)
+  # print(max_indices)
+  if not randomize:
+    return max_indices[0][0][0]
+  else:
+    random_number = random.random()
+    if 0 < random_number <= 0.3:
+      return max_indices[0][0][0]
+    elif 0.3 < random_number <= 0.6:
+      return max_indices[0][0][1]
+    else:
+      return max_indices[0][0][2]
+
+def maxify(tensor, max_index): # (,27)
+  ret = torch.zeros(N, device=device)
+  # max_index = torch.argmax(tensor)
+  ret[max_index] = 1
+  return ret
+
+
 def word2tensor(word, from_index, to_index):
   length = to_index - from_index + 1
   tensor = torch.zeros((1, length, N), device=device)
   # print(word)
   for i in range(from_index, to_index + 1):
+    # ch = word[i] if i < len(word) else EON
+    ch_index = (ord(word[i]) - 97 + 1) if i < len(word) else 0 # EON has index 0
+    tensor[0][i][ch_index] = 1
+  
+  return tensor
+
+def word2tensor_full(word):
+  tensor = torch.zeros(size=(1, SEQ_LEN, N), device=device)
+  # print(word)
+  for i in range(SEQ_LEN):
     # ch = word[i] if i < len(word) else EON
     ch_index = (ord(word[i]) - 97 + 1) if i < len(word) else 0 # EON has index 0
     tensor[0][i][ch_index] = 1
@@ -49,7 +82,7 @@ def compress_labels(labels): # Tensor of: [BATCH_SIZE, v, 27]
   return compressed
 
 def get_model_filename():
-  return "model_v2_" + str(datetime.datetime.now()) + '.pth'
+  return "model_v3_" + str(datetime.datetime.now()) + '.pth'
 
 def load_weights(model):
   print("Loading weights from {}".format(MODEL_FILENAME))
@@ -115,7 +148,7 @@ class NamesDataset(Dataset):
     self.train = train
     self.test = not train
 
-    f = open('names.txt', 'r')
+    f = open('/home/jason/Repos/NN/hw7/names.txt', 'r')
     lines = f.readlines()
     self.names = [line.strip() for line in lines]
     self.names = list(map(lambda name: name.lower(), self.names))
@@ -136,7 +169,7 @@ class NamesDataset(Dataset):
 
 
   def __len__(self):
-    # return 1
+    # return 5
     return len(self.names)
 
   def __getitem__old(self, index):
@@ -214,17 +247,20 @@ def train_epoch(model):
     # c = c.to(device)
     word = inputs[0]
 
-    for word_end_index in range(SEQ_LEN):
+    # for word_end_index in range(SEQ_LEN):
+    for word_end_index in range(1):
+
       # print("inputs")
       # print(inputs)
       # print("labels")
       # print(labels)
       if word_end_index == len(word) + 1:
-        break
+        pass
+        # break
     
 
-      vinput = word2tensor(inputs[0], 0, word_end_index)
-      vlabel = word2tensor(labels[0], 0, word_end_index)
+      vinput = word2tensor_full(inputs[0])
+      vlabel = word2tensor_full(labels[0])
 
       # print("vinput.shape")
       # print(vinput.shape)
@@ -292,7 +328,7 @@ def train(model):
     if epoch % 20 == 0:
       print('Epoch: {} Loss: {}'.format(epoch, loss))
 
-    if epoch % 50 == 0 and epoch != 0:
+    if epoch % 20 == 0 and epoch != 0:
       save_model(model)
 
 def test(model):
@@ -300,14 +336,14 @@ def test(model):
   c = torch.zeros([1, 1, N], device=device)
 
 
-  for letter_index in range(N):
-    inputs = torch.zeros([1, 1, N], device=device)
+  for letter_index in range(1,2):
+    inputs = torch.zeros([1, SEQ_LEN, N], device=device)
     inputs[0][0][letter_index] = 1
     starting_letter = get_letter(inputs, randomize=False)
     print("Starting letter: {}".format(starting_letter))
     generated_name = starting_letter
 
-    for i in range(SEQ_LEN):
+    for i in range(SEQ_LEN-1):
 
       # print("inputs.shape")
       # print(inputs.shape)
@@ -320,22 +356,30 @@ def test(model):
       # print("output.shape")
       # print(output.shape)
       # print(output)
-      indices = torch.tensor([i], device=device)
+      indices = torch.tensor([i+1], device=device)
       last_letter_tensor = torch.index_select(output, 1, indices)
 
-      inputs = torch.cat((inputs, last_letter_tensor), 1)
+      # inputs = torch.cat((inputs, last_letter_tensor), 1)
+      # print("last_letter_tensor.shape")
+      # print(last_letter_tensor.shape)
+      max_index = get_max_index(last_letter_tensor, randomize=True).item()
+      # print(last_letter_tensor)
+      # print("max_index: {}".format(max_index))
+
+      inputs[0][i+1] = maxify(last_letter_tensor, max_index=max_index)
       # print(output[0][0])
       # print(torch.argmax(output[0][0]).item())
 
-      letter = get_letter(last_letter_tensor)
+      # letter = get_letter(last_letter_tensor, randomize=False)
+      letter = EON if max_index == 0 else chr(max_index + 97 - 1)
     
       generated_name = generated_name + letter
       
       if letter == EON:
-        pass
-        # break
+        # pass
+        break
 
-    print("Generated name:")
+    # print("Generated name:")
     print(generated_name)
     # print("Length of generated name: {}".format(len(generated_name)))
 
@@ -367,8 +411,9 @@ if __name__ == "__main__":
   scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=100, gamma=0.9)
   # model.
 
-  train(model)
-  # test(model)
+  # train(model)
+  for i in range(20):
+    test(model)
 
   
 
