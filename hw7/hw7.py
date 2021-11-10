@@ -12,7 +12,8 @@ import torch.optim as optim
 import torch.nn as nn
 from torch.utils.data import Dataset
 from torch.utils.data import DataLoader
-from torchvision.io import read_image
+
+# torch.autograd.set_detect_anomaly(True)
 
 # good model: model_v3_2021-11-09 03_39_08.650717
 EPOCHS = 100
@@ -198,13 +199,18 @@ class RNN(nn.Module):
   def forward(self, x, prev_state):
     h, c = prev_state
     # print(x.shape)
-    # print(prev_state.shape)
+    # print("h.shape: {} c.shape: {}".format(h.shape, c.shape))
 
     # combined = torch.cat((x, prev_state), 1)
     # print("com")
     # print(combined.shape)
     output, (hn, cn) = self.lstm(x, (h, c))
+    # print("output.shape")
+    # print(output.shape)
+
     output = self.i2o(output)
+    # print("i2o.shape: {}".format(output.shape))
+
     # output = F.log_softmax(output, dim=1) # CE loss may require unnormalized inputs
     return output, (hn, cn)
 
@@ -216,105 +222,110 @@ def train_epoch(model):
   model.zero_grad()
   loss = 0
 
+  with torch.autograd.detect_anomaly():
+    for i, data in enumerate(training_dataloader, 0):
+      inputs, labels = data
+      # print(type(inputs))
+      # print(type(labels))
 
-  for i, data in enumerate(training_dataloader, 0):
-    inputs, labels = data
-    # print(type(inputs))
-    # print(type(labels))
-
-    # print(len(inputs))
-    # print(len(labels))
-    # words = str_from_3d_tensor(inputs)
-    # print("Words")
-    # print(words)
-    # words = str_from_3d_tensor(labels)
-    # print("Labels")
-    # print(words)
-    # print("i: {}".format(i))
-    # print("inputs shape")
-    # print(inputs.shape)
-    # print("labels shape")
-    # print(labels.shape)
-    # model.zero_grad() # weird
-    # optimizer.zero_grad()
-
-    # print("h.shape")
-    # print(h.shape)
-    # print("c.shape")
-    # print(c.shape)
-
-    # h = h.0to(device)
-    # c = c.to(device)
-    word = inputs[0]
-
-    # for word_end_index in range(SEQ_LEN):
-    for word_end_index in range(1):
-
-      # print("inputs")
-      # print(inputs)
-      # print("labels")
-      # print(labels)
-      if word_end_index == len(word) + 1:
-        pass
-        # break
-    
-
-      vinput = word2tensor_full(inputs[0])
-      vlabel = word2tensor_full(labels[0])
-
-      # print("vinput.shape")
-      # print(vinput.shape)
-      # print("vlabel.shape")
-      # print(vlabel.shape)
-
-      output, (h, c) = model(vinput, (h, c))
-
-      # print("output.shape")
-      # print(output.shape)
-      # print("output.shape")
-      # print(output.shape)
-      # print("hidden.shape")
-      # print(hidden.shape)
-      # print("labels.shape")
+      # print(len(inputs))
+      # print(len(labels))
+      # words = str_from_3d_tensor(inputs)
+      # print("Words")
+      # print(words)
+      # words = str_from_3d_tensor(labels)
+      # print("Labels")
+      # print(words)
+      # print("i: {}".format(i))
+      # print("inputs shape")
+      # print(inputs.shape)
+      # print("labels shape")
       # print(labels.shape)
-      # print("vinput.shape")
-      # print(vinput.shape)
-      # print("vinput")
-      # print(str_from_3d_tensor(vinput))
+      # model.zero_grad() # weird
+      # optimizer.zero_grad()
 
-      # print("vlabel.shape")
-      # print(vlabel.shape)
-      # print("vlabel")
-      # print(str_from_3d_tensor(vlabel))
+      # print("h.shape")
+      # print(h.shape)
+      # print("c.shape")
+      # print(c.shape)
 
-      # print("output")
-      # print(str_from_3d_tensor(output))
+      # h = h.0to(device)
+      # c = c.to(device)
+      word = inputs[0]
 
+      # for word_end_index in range(SEQ_LEN):
+      for word_end_index in range(1):
 
+        # print("inputs")
+        # print(inputs)
+        # print("labels")
+        # print(labels)
+        if word_end_index == len(word) + 1:
+          pass
+          # break
       
-      # convert the labels into the format required by cross entropy loss
-      compressed = compress_labels(vlabel) 
-      # print(compressed.shape)
 
-      if HAS_CUDA:
-        # l = criterion(output.cuda(), .cuda())
-        l = criterion(torch.transpose(output, 1, 2).cuda(), compressed.cuda())
-      else:
-        l = criterion(torch.transpose(output, 1, 2), compressed)
+        vinput = word2tensor_full(inputs[0])
+        vlabel = word2tensor_full(labels[0])
 
-      loss += l
-    # optimizer.step() # throwing an error
-    # scheduler.step()
+        # print("vinput.shape")
+        # print(vinput.shape)
+        # print("vlabel.shape")
+        # print(vlabel.shape)
 
-    if i % 100 == 0:
-      pass
-      # print("{} done".format(i))
-      # print("loss: {}".format(loss.item()))
+        output, (h, c) = model(vinput, (h, c))
 
-  loss.backward()
+        # print("output.shape")
+        # print(output.shape)
+        # print("output.shape")
+        # print(output.shape)
+        # print("hidden.shape")
+        # print(hidden.shape)
+        # print("labels.shape")
+        # print(labels.shape)
+        # print("vinput.shape")
+        # print(vinput.shape)
+        # print("vinput")
+        # print(str_from_3d_tensor(vinput))
 
-  for p in model.parameters():
-    p.data.add_(p.grad.data, alpha=-ETA)
+        # print("vlabel.shape")
+        # print(vlabel.shape)
+        # print("vlabel")
+        # print(str_from_3d_tensor(vlabel))
+        # print("h.shape {}".format(h.shape))
+        # print("c.shape {}".format(c.shape))
+
+
+        # print("output")
+        # print(str_from_3d_tensor(output))
+
+
+        
+        # convert the labels into the format required by cross entropy loss
+        compressed = compress_labels(vlabel) 
+        # print(compressed.shape)
+
+        if HAS_CUDA:
+          # l = criterion(output.cuda(), .cuda())
+          l = criterion(torch.transpose(output, 1, 2).cuda(), compressed.cuda())
+        else:
+          l = criterion(torch.transpose(output, 1, 2), compressed)
+
+        # print("compressed.shape: {}".format(compressed.shape))
+
+        loss += l
+      # optimizer.step() # throwing an error
+      # scheduler.step()
+
+      if i % 100 == 0:
+        pass
+        # print("{} done".format(i))
+        # print("loss: {}".format(loss.item()))
+
+    loss.backward()
+
+    for p in model.parameters():
+      p.data.add_(p.grad.data, alpha=-ETA)
 
   return output, loss.item() / (2000 / BATCH_SIZE)
 
@@ -325,7 +336,7 @@ def train(model):
     output, loss = train_epoch(model)
     total_loss += loss
 
-    if epoch % 20 == 0:
+    if epoch % 1 == 0:
       print('Epoch: {} Loss: {}'.format(epoch, loss))
 
     if epoch % 20 == 0 and epoch != 0:
@@ -337,13 +348,20 @@ def test(model):
 
 
   for letter_index in range(1,2):
-    inputs = torch.zeros([1, SEQ_LEN, N], device=device)
-    inputs[0][0][letter_index] = 1
-    starting_letter = get_letter(inputs, randomize=False)
+    max_index = letter_index
+    inputs = torch.zeros([1, 0, N], device=device)
+    # inputs[0][0][letter_index] = 1
+    # starting_letter = get_letter(inputs, randomize=False)
+    starting_letter = EON if letter_index == 0 else chr(letter_index + 97 - 1)
     print("Starting letter: {}".format(starting_letter))
     generated_name = starting_letter
 
     for i in range(SEQ_LEN-1):
+
+      inputs = torch.cat((inputs, torch.zeros([1,1,N])), dim=1)
+      inputs[0][-1][max_index] = 1
+
+
 
       # print("inputs.shape")
       # print(inputs.shape)
@@ -357,7 +375,12 @@ def test(model):
       # print(output.shape)
       # print(output)
       indices = torch.tensor([i+1], device=device)
-      last_letter_tensor = torch.index_select(output, 1, indices)
+      # last_letter_tensor = torch.index_select(output, 1, indices)
+      last_letter_tensor = output[0][-1].unsqueeze(0).unsqueeze(0)
+
+      # print("last_letter_tensor.shape")
+      # print(last_letter_tensor.shape)
+
 
       # inputs = torch.cat((inputs, last_letter_tensor), 1)
       # print("last_letter_tensor.shape")
@@ -366,7 +389,7 @@ def test(model):
       # print(last_letter_tensor)
       # print("max_index: {}".format(max_index))
 
-      inputs[0][i+1] = maxify(last_letter_tensor, max_index=max_index)
+      # inputs[0][i+1] = maxify(last_letter_tensor, max_index=max_index)
       # print(output[0][0])
       # print(torch.argmax(output[0][0]).item())
 
