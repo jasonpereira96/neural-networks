@@ -13,10 +13,11 @@ import torch.nn as nn
 from torch.utils.data import Dataset
 from torch.utils.data import DataLoader
 
-# torch.autograd.set_detect_anomaly(True)
+torch.autograd.set_detect_anomaly(False)
 
 # good model: model_v3_2021-11-09 03_39_08.650717
-EPOCHS = 100
+TEST = False
+EPOCHS = 1000 
 SAVE_WEIGHTS = False
 MODEL_FILENAME = "/home/jason/Repos/NN/hw7/" + "model_v3_2021-11-09 03_39_08.650717.pth" # load the model from this file
 LOAD_WEIGHTS = True
@@ -83,7 +84,7 @@ def compress_labels(labels): # Tensor of: [BATCH_SIZE, v, 27]
   return compressed
 
 def get_model_filename():
-  return "model_v3_" + str(datetime.datetime.now()) + '.pth'
+  return "model_v4_" + str(datetime.datetime.now()) + '.pth'
 
 def load_weights(model):
   print("Loading weights from {}".format(MODEL_FILENAME))
@@ -193,6 +194,8 @@ class RNN(nn.Module):
     super(RNN, self).__init__()
     self.lstm = nn.LSTM(input_size=N, hidden_size=N, num_layers=1, batch_first=True)
     self.i2o = nn.Linear(N, N)
+    # self.i2o2 = nn.Linear(N, N)
+
     # self.i2o = nn.Linear(2*N, N)
 
 
@@ -209,6 +212,8 @@ class RNN(nn.Module):
     # print(output.shape)
 
     output = self.i2o(output)
+    # output = self.i2o2(output)
+
     # print("i2o.shape: {}".format(output.shape))
 
     # output = F.log_softmax(output, dim=1) # CE loss may require unnormalized inputs
@@ -222,115 +227,115 @@ def train_epoch(model):
   model.zero_grad()
   loss = 0
 
-  with torch.autograd.detect_anomaly():
-    for i, data in enumerate(training_dataloader, 0):
-      inputs, labels = data
-      # print(type(inputs))
-      # print(type(labels))
+  for i, data in enumerate(training_dataloader, 0):
+    inputs, labels = data
+    # print(type(inputs))
+    # print(type(labels))
 
-      # print(len(inputs))
-      # print(len(labels))
-      # words = str_from_3d_tensor(inputs)
-      # print("Words")
-      # print(words)
-      # words = str_from_3d_tensor(labels)
-      # print("Labels")
-      # print(words)
-      # print("i: {}".format(i))
-      # print("inputs shape")
-      # print(inputs.shape)
-      # print("labels shape")
-      # print(labels.shape)
-      # model.zero_grad() # weird
-      # optimizer.zero_grad()
+    # print(len(inputs))
+    # print(len(labels))
+    # words = str_from_3d_tensor(inputs)
+    # print("Words")
+    # print(words)
+    # words = str_from_3d_tensor(labels)
+    # print("Labels")
+    # print(words)
+    # print("i: {}".format(i))
+    # print("inputs shape")
+    # print(inputs.shape)
+    # print("labels shape")
+    # print(labels.shape)
+    # model.zero_grad() # weird
+    # optimizer.zero_grad()
 
-      # print("h.shape")
-      # print(h.shape)
-      # print("c.shape")
-      # print(c.shape)
+    # print("h.shape")
+    # print(h.shape)
+    # print("c.shape")
+    # print(c.shape)
 
-      # h = h.0to(device)
-      # c = c.to(device)
-      word = inputs[0]
+    # h = h.0to(device)
+    # c = c.to(device)
+    word = inputs[0]
 
-      # for word_end_index in range(SEQ_LEN):
-      for word_end_index in range(1):
+    # for word_end_index in range(SEQ_LEN):
 
-        # print("inputs")
-        # print(inputs)
-        # print("labels")
-        # print(labels)
-        if word_end_index == len(word) + 1:
-          pass
-          # break
-      
+    # print("inputs")
+    # print(inputs)
+    # print("labels")
+    # print(labels)
+   
+  
 
-        vinput = word2tensor_full(inputs[0])
-        vlabel = word2tensor_full(labels[0])
+    vinput = word2tensor_full(inputs[0])
+    vlabel = word2tensor_full(labels[0])
 
-        # print("vinput.shape")
-        # print(vinput.shape)
-        # print("vlabel.shape")
-        # print(vlabel.shape)
+    # print("vinput.shape")
+    # print(vinput.shape)
+    # print("vlabel.shape")
+    # print(vlabel.shape)
 
-        output, (h, c) = model(vinput, (h, c))
+    output, (h, c) = model(vinput, (h, c))
 
-        # print("output.shape")
-        # print(output.shape)
-        # print("output.shape")
-        # print(output.shape)
-        # print("hidden.shape")
-        # print(hidden.shape)
-        # print("labels.shape")
-        # print(labels.shape)
-        # print("vinput.shape")
-        # print(vinput.shape)
-        # print("vinput")
-        # print(str_from_3d_tensor(vinput))
+    # print("output.shape")
+    # print(output.shape)
+    # print("output.shape")
+    # print(output.shape)
+    # print("hidden.shape")
+    # print(hidden.shape)
+    # print("labels.shape")
+    # print(labels.shape)
+    # print("vinput.shape")
+    # print(vinput.shape)
+    # print("vinput")
+    # print(str_from_3d_tensor(vinput))
 
-        # print("vlabel.shape")
-        # print(vlabel.shape)
-        # print("vlabel")
-        # print(str_from_3d_tensor(vlabel))
-        # print("h.shape {}".format(h.shape))
-        # print("c.shape {}".format(c.shape))
+    # print("vlabel.shape")
+    # print(vlabel.shape)
+    # print("vlabel")
+    # print(str_from_3d_tensor(vlabel))
+    # print("h.shape {}".format(h.shape))
+    # print("c.shape {}".format(c.shape))
 
 
-        # print("output")
-        # print(str_from_3d_tensor(output))
+    # print("output")
+    # print(str_from_3d_tensor(output))
 
 
-        
-        # convert the labels into the format required by cross entropy loss
-        compressed = compress_labels(vlabel) 
-        # print(compressed.shape)
+    
+    # convert the labels into the format required by cross entropy loss
+    compressed = compress_labels(vlabel) 
+    # print(compressed.shape)
 
-        if HAS_CUDA:
-          # l = criterion(output.cuda(), .cuda())
-          l = criterion(torch.transpose(output, 1, 2).cuda(), compressed.cuda())
-        else:
-          l = criterion(torch.transpose(output, 1, 2), compressed)
+    if HAS_CUDA:
+      # l = criterion(output.cuda(), .cuda())
+      l = criterion(torch.transpose(output, 1, 2).cuda(), compressed.cuda())
+    else:
+      l = criterion(torch.transpose(output, 1, 2), compressed)
 
-        # print("compressed.shape: {}".format(compressed.shape))
+    # print("compressed.shape: {}".format(compressed.shape))
 
-        loss += l
-      # optimizer.step() # throwing an error
-      # scheduler.step()
+    loss = loss + l
+    # loss += l
 
-      if i % 100 == 0:
-        pass
-        # print("{} done".format(i))
-        # print("loss: {}".format(loss.item()))
 
-    loss.backward()
+  # optimizer.step() # throwing an error
+    # scheduler.step()
 
-    for p in model.parameters():
-      p.data.add_(p.grad.data, alpha=-ETA)
+    if i % 100 == 0:
+      pass
+      # print("{} done".format(i))
+      # print("loss: {}".format(loss.item()))
+
+  loss.backward()
+
+  for p in model.parameters():
+    p.data.add_(p.grad.data, alpha=-ETA)
 
   return output, loss.item() / (2000 / BATCH_SIZE)
 
 def train(model):
   print("Starting training")
+  print(model)
   total_loss = 0
   for epoch in range(EPOCHS): # 2 epochs
     output, loss = train_epoch(model)
@@ -342,69 +347,69 @@ def train(model):
     if epoch % 20 == 0 and epoch != 0:
       save_model(model)
 
-def test(model):
+def test(model, letter_index):
   h = torch.zeros([1, 1, N], device=device)
   c = torch.zeros([1, 1, N], device=device)
 
+  max_index = letter_index
+  inputs = torch.zeros([1, 0, N], device=device)
+  # inputs[0][0][letter_index] = 1
+  # starting_letter = get_letter(inputs, randomize=False)
+  starting_letter = EON if letter_index == 0 else chr(letter_index + 97 - 1)
+  print("Starting letter: {}".format(starting_letter))
+  generated_name = starting_letter
 
-  for letter_index in range(1,2):
-    max_index = letter_index
-    inputs = torch.zeros([1, 0, N], device=device)
-    # inputs[0][0][letter_index] = 1
-    # starting_letter = get_letter(inputs, randomize=False)
-    starting_letter = EON if letter_index == 0 else chr(letter_index + 97 - 1)
-    print("Starting letter: {}".format(starting_letter))
-    generated_name = starting_letter
+  for i in range(SEQ_LEN-1):
 
-    for i in range(SEQ_LEN-1):
-
-      inputs = torch.cat((inputs, torch.zeros([1,1,N])), dim=1)
-      inputs[0][-1][max_index] = 1
+    inputs = torch.cat((inputs, torch.zeros([1,1,N])), dim=1)
+    inputs[0][-1][max_index] = 1
 
 
 
-      # print("inputs.shape")
-      # print(inputs.shape)
-      # print("inputs")
-      # print(str_from_3d_tensor(inputs))
+    # print("inputs.shape")
+    # print(inputs.shape)
+    # print("inputs")
+    # print(str_from_3d_tensor(inputs))
 
 
-      output, (h, c) = model(inputs, (h, c))
-      # print("Output")
-      # print("output.shape")
-      # print(output.shape)
-      # print(output)
-      indices = torch.tensor([i+1], device=device)
-      # last_letter_tensor = torch.index_select(output, 1, indices)
-      last_letter_tensor = output[0][-1].unsqueeze(0).unsqueeze(0)
+    output, (h, c) = model(inputs, (h, c))
+    # print("Output")
+    # print("output.shape")
+    # print(output.shape)
+    # print(output)
+    indices = torch.tensor([i+1], device=device)
+    # last_letter_tensor = torch.index_select(output, 1, indices)
+    last_letter_tensor = output[0][-1].unsqueeze(0).unsqueeze(0)
 
-      # print("last_letter_tensor.shape")
-      # print(last_letter_tensor.shape)
+    # print("last_letter_tensor.shape")
+    # print(last_letter_tensor.shape)
 
 
-      # inputs = torch.cat((inputs, last_letter_tensor), 1)
-      # print("last_letter_tensor.shape")
-      # print(last_letter_tensor.shape)
-      max_index = get_max_index(last_letter_tensor, randomize=True).item()
-      # print(last_letter_tensor)
-      # print("max_index: {}".format(max_index))
+    # inputs = torch.cat((inputs, last_letter_tensor), 1)
+    # print("last_letter_tensor.shape")
+    # print(last_letter_tensor.shape)
+    max_index = get_max_index(last_letter_tensor, randomize=True).item()
+    # print(last_letter_tensor)
+    # print("max_index: {}".format(max_index))
 
-      # inputs[0][i+1] = maxify(last_letter_tensor, max_index=max_index)
-      # print(output[0][0])
-      # print(torch.argmax(output[0][0]).item())
+    # inputs[0][i+1] = maxify(last_letter_tensor, max_index=max_index)
+    # print(output[0][0])
+    # print(torch.argmax(output[0][0]).item())
 
-      # letter = get_letter(last_letter_tensor, randomize=False)
-      letter = EON if max_index == 0 else chr(max_index + 97 - 1)
+    # letter = get_letter(last_letter_tensor, randomize=False)
+    letter = EON if max_index == 0 else chr(max_index + 97 - 1)
+  
+   
     
-      generated_name = generated_name + letter
-      
-      if letter == EON:
-        # pass
-        break
+    if letter == EON:
+      # pass
+      break
 
-    # print("Generated name:")
-    print(generated_name)
-    # print("Length of generated name: {}".format(len(generated_name)))
+    generated_name = generated_name + letter
+
+  # print("Generated name:")
+  print(generated_name)
+  # print("Length of generated name: {}".format(len(generated_name)))
 
 
 if __name__ == "__main__":
@@ -434,9 +439,22 @@ if __name__ == "__main__":
   scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=100, gamma=0.9)
   # model.
 
-  # train(model)
-  for i in range(20):
-    test(model)
+  
+  if TEST:
+    while True:
+      user_input = input("Please enter a starting letter: ")
+
+      if len(user_input) != 1:
+        continue
+
+      if not user_input.isalpha():
+        continue
+      letter_index = ord(user_input.lower()) - 97 + 1
+      for i in range(20):
+        test(model, letter_index)
+  else:
+    train(model)
+
 
   
 
