@@ -9,14 +9,18 @@ DOWN = "DOWN"
 LEFT = "LEFT"
 RIGHT = "RIGHT"
 DEFAULT_REWARD = 0
+EPISODES = 50000
 G = 3
 N = 5
-Y = 0.9
+Y = 0.6
 LR = 0.1
 actions = [UP, DOWN, LEFT, RIGHT]
 START_STATE = (1,1,0)
 HOME = (1, N)
 T = 100
+ALPHA = 0.6
+
+pure_exploitation = False
 
 n_states = N * N * (G+1)
 n_entries = n_states * len(actions)
@@ -61,45 +65,6 @@ def plot_q_table():
       Z.append(g)
   plot_graph(X, Y, Z, C)
 
-class Board:
-  def __init__(self, N):
-    self.N = N
-    self.board = [0] * N
-    for i in range(N):
-      self.board[i] = ['a'] * N
-
-  def __str__(self):
-    res = ''
-    for i in range(self.N):
-      res = res + str(self.board[i]) + '\n'
-    return res
-     
-  def get_phys(self, x, y):
-    x = x - 1
-    y = y - 1
-
-    N = self.N
-    phys_y = y
-    phys_x = N - x -1
-
-    return phys_x, phys_y
-
-  def set_value(self, x, y, v):
-    phys_x, phys_y = self.get_phys(x, y)
-    self.board[phys_x][phys_y] = v
-  
-  def get_value(self, x, y):
-    phys_x, phys_y = self.get_phys(x, y)
-    return self.board[phys_x][phys_y]
-
-def ____reward(from_state, to_state):
-  x1, y1, g1 = from_state
-  x2, y2, g2 = to_state
-
-  if x2 == 1 and y2 == N and g2 == 0:
-    return g1
-  
-  return DEFAULT_REWARD
       
 
 def get_coordinates(x, y, action):
@@ -126,10 +91,11 @@ def get_next_action(state):
       max_q_value =  q_table[(x_new, y_new, g, action)]
 
   ran = np.random.random()
-  if 0 < ran < 0.6 and True:
+  if 0 < ran < ALPHA or pure_exploitation:
     return most_profitable_action
   else:
-    return actions[np.random.randint(low=0, high=10000) % 4]
+    rem_actions = list(filter(lambda a: a != most_profitable_action, actions))
+    return rem_actions[np.random.randint(low=0, high=10000) % 3]
 
 
 def get_next_state(state, action):
@@ -187,37 +153,43 @@ def print_q_table():
     print("{}: {}".format(k, q_table[k]))
 
 
-print_q_table()
 
+def train():
+  for episode in range(1, EPISODES):
+    if episode % 1000 == 0:
+      print("episode: {}".format(episode))
 
-for episode in range(1, 20000):
-  if episode % 1000 == 0:
-    print("episode: {}".format(episode))
+    s = START_STATE
+    for t in range(1, T):
+      x, y, g = s
+      action_to_take = get_next_action(s)
+      next_state, r = get_next_state(s, action_to_take)
+      q_old = q_table[(x, y, g, action_to_take)]
+      estimate_of_optimal_future_value = get_estimate_of_optimal_future_value(next_state)
+      update_value = LR * (r + Y**t * estimate_of_optimal_future_value - q_old)
+      q_table[(x, y, g, action_to_take)] = q_old + update_value
+      # print(update_value)
+      s = next_state
 
-  s = START_STATE
-  for t in range(1, T):
-    x, y, g = s
-    action_to_take = get_next_action(s)
-    next_state, r = get_next_state(s, action_to_take)
-    q_old = q_table[(x, y, g, action_to_take)]
-    estimate_of_optimal_future_value = get_estimate_of_optimal_future_value(next_state)
-    update_value = LR * (r + Y**t * estimate_of_optimal_future_value - q_old)
-    q_table[(x, y, g, action_to_take)] = q_old + update_value
-    # print((x[0], x[1], x[2], action_to_take))
-    # print(update_value)
-    s = next_state
 
 def print_policy():
   state = START_STATE
+  total_reward = 0
   print("Policy:")
-  for i in range(50):
+  for t in range(50):
     x, y, g = state
     best_action = policy(state)
     next_state, r = get_next_state(state, best_action)
-    print("x: {} y: {} g: {}".format(x, y, g))
+    total_reward += r * (Y ** t)
+    print("{}) {}".format(t+1, best_action))
+    # print("x: {} y: {} g: {}".format(x, y, g))
     state = next_state
 
+  print("Total reward: {}".format(total_reward))
+
+train()
 
 print_q_table()
+print("n = {}, G = {}, alpha = {}, lr = {}, Y = {}".format(N, G, ALPHA, LR, Y))
 print_policy()
 # plot_q_table()
