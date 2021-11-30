@@ -1,8 +1,4 @@
 import numpy as np
-import matplotlib.pyplot as plt
-from matplotlib import cm
-from matplotlib.ticker import LinearLocator
-from mpl_toolkits.mplot3d import Axes3D
 
 UP = "UP"
 DOWN = "DOWN"
@@ -25,6 +21,7 @@ pure_exploitation = False
 n_states = N * N * (G+1)
 n_entries = n_states * len(actions)
 
+np.random.seed(55)
 
 def init_q_table():
   board = {}
@@ -45,25 +42,6 @@ q_table = init_q_table()
 def is_valid(state):
   x, y, g = state
   return 0 <= g <= G and 1 <= x <= N and 1 <= y <= N
-
-def plot_graph(X, Y, Z, C):
-  fig = plt.figure()
-  ax = fig.gca(projection='3d')
-  ax.scatter(X, Y, Z, c=C, lw=0, s=30, cmap='coolwarm', vmin=min(C), vmax=max(C))
-  plt.show()
-
-
-def plot_q_table():
-  X, Y, Z, C = [],[],[],[]
-  for k in q_table.keys():
-    x, y, g, action = k
-    q_value = q_table[k]
-    if action == RIGHT:
-      X.append(x)
-      Y.append(y)
-      C.append(q_value)
-      Z.append(g)
-  plot_graph(X, Y, Z, C)
 
       
 
@@ -166,7 +144,7 @@ def train():
       next_state, r = get_next_state(s, action_to_take)
       q_old = q_table[(x, y, g, action_to_take)]
       estimate_of_optimal_future_value = get_estimate_of_optimal_future_value(next_state)
-      update_value = LR * (r + Y**t * estimate_of_optimal_future_value - q_old)
+      update_value = LR * (r + Y**1 * estimate_of_optimal_future_value - q_old)
       q_table[(x, y, g, action_to_take)] = q_old + update_value
       # print(update_value)
       s = next_state
@@ -176,12 +154,12 @@ def print_policy():
   state = START_STATE
   total_reward = 0
   print("Policy:")
-  for t in range(50):
+  for t in range(40):
     x, y, g = state
     best_action = policy(state)
     next_state, r = get_next_state(state, best_action)
     total_reward += r * (Y ** t)
-    print("{}) {}".format(t+1, best_action))
+    print("{}) {}  x: {} y: {} g: {}".format(t+1, best_action, next_state[0], next_state[1], next_state[2]))
     # print("x: {} y: {} g: {}".format(x, y, g))
     state = next_state
 
@@ -192,4 +170,3 @@ train()
 print_q_table()
 print("n = {}, G = {}, alpha = {}, lr = {}, Y = {}".format(N, G, ALPHA, LR, Y))
 print_policy()
-# plot_q_table()
